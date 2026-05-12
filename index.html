@@ -409,6 +409,7 @@ function catLabel(key){
 }
 function noteClass(nk){return nk==='noteNoCard'?'b-no':nk==='noteCall'||nk==='noteVia'||nk==='noteGoogle'||nk==='noteApple'?'b-warn':'b-ok';}
 function isNoCard(nk){return nk==='noteNoCard';}
+function expiryWarn(e){
   if(!e)return false;
   const[m,y]=e.split('/');if(!m||!y)return false;
   const exp=new Date(2000+parseInt(y),parseInt(m)-1,1);
