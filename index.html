@@ -240,7 +240,10 @@
     </button>
     <div class="d-chip" id="dChip"></div>
     <div><div class="d-name" id="dName"></div><div class="d-meta" id="dMeta"></div></div>
-    <button class="btn-cancel" style="margin-left:auto;padding:6px 14px;font-size:13px;" onclick="deleteCard()">삭제</button>
+    <div style="margin-left:auto;display:flex;gap:6px;">
+      <button class="btn-cancel" style="padding:6px 14px;font-size:13px;" id="editCardBtn" onclick="openEdit()">✏️</button>
+      <button class="btn-cancel" style="padding:6px 14px;font-size:13px;" id="deleteCardBtn" onclick="deleteCard()">삭제</button>
+    </div>
   </div>
   <div class="detail-body">
     <div class="sec-title" style="margin-top:0;">연결된 서비스</div>
@@ -254,55 +257,128 @@
 <div class="toast" id="toast"></div>
 
 <script>
+// ── i18n ─────────────────────────────────────────────────────────
+const T={
+  au:{
+    appSubtitle:'My cards & subscriptions',
+    navCards:'Cards',navSubs:'Subscriptions',navSummary:'Summary',
+    myCards:'My Cards / Accounts',allSubs:'All Subscriptions / Direct Debits',summarySec:'Summary',
+    addCardBtn:'Add Card / Account',
+    addCardTitle:'Add Card / Account',typeCard:'💳 Card',typeAccount:'🏦 Account',
+    nameLabel:'Name',namePH:'e.g. My Visa Card',last4Label:'Last 4 digits (optional)',
+    expiryLabel:'Expiry',expiryPH:'MM/YY',colourLabel:'Colour',
+    linkedLabel:'Linked Services',customLabel:'Add Custom Service',
+    customHint:"Add a service that's not in the list",svcNamePH:'Service name',urlPH:'Payment change URL (optional)',
+    addBtn:'Add',saveBtn:'Save',cancelBtn:'Cancel',deleteBtn:'Delete',doneBtn:'Done',
+    expiryWarn:'Expiring soon',noSvcs:'No linked services',monthlyTotal:'Monthly total',
+    statCards:'Cards / Accounts',statSubs:'Subscriptions',statSpend:'Monthly spend',statExpiring:'Expiring soon',
+    notEntered:'Not entered',noExpiring:'No expiring cards ✓',changeNow:'Services to update now',
+    editAmt:'Amount ✎',goBtn:'Update ↗',callRequired:'Call required',
+    amtTitle:'Amount / Billing date',amtLabel:'Monthly amount',amtPH:'e.g. 17',
+    dayLabel:'Billing day',dayPH:'e.g. 14',
+    saved:'✓ Saved',cardAdded:'✓ Card added',cardDeleted:'Card deleted',cardUpdated:'✓ Card updated',
+    svcAdded:'✓ added',enterName:'Please enter a service name',
+    deleteConfirm:'Delete this card?',editCard:'Edit Card',
+    accountMeta:'Account',expiryMeta:'Expiry',
+    updateGuide:'Tap Update ↗ next to each service to go directly to its payment settings page.',
+    selectCountry:'Select Country',
+    alertTitle:'⚠ Card expiring soon',alertBody:'is expiring soon.',linkedSvcs:'Linked services',
+    notifTitle:'CardKeep ⚠ Card Expiring',
+    notifBody:'{name} expires in {days} days. Update payment details on linked services now!',
+    notifOn:'✓ Notifications enabled',notifAlready:'✓ Notifications are already on',
+    notifDenied:'Notification permission denied',notifSettings:'Allow notifications in your browser settings',
+    notifNo:'This browser does not support notifications',
+    streaming:'Streaming',utilities:'Utilities',insurance:'Insurance',finance:'Finance',
+    noteOnline:'Online',noteCall:'Call required',noteNoCard:'Card not supported',
+    noteDirect:'Direct link',noteGoogle:'Via Google',noteApple:'Via Apple ID',noteVia:'Via platform',
+    monthly:'every {day}',
+  },
+  kr:{
+    appSubtitle:'내 카드 & 구독 관리',
+    navCards:'카드',navSubs:'구독',navSummary:'요약',
+    myCards:'내 카드 / 계좌',allSubs:'전체 구독 / 자동이체',summarySec:'요약',
+    addCardBtn:'카드 / 계좌 추가',
+    addCardTitle:'카드 / 계좌 추가',typeCard:'💳 카드',typeAccount:'🏦 계좌',
+    nameLabel:'이름',namePH:'예: 내 신한카드',last4Label:'뒷 4자리 (선택)',
+    expiryLabel:'유효기간',expiryPH:'MM/YY',colourLabel:'색상',
+    linkedLabel:'연결된 서비스',customLabel:'서비스 직접 추가',
+    customHint:'목록에 없는 서비스를 직접 입력해요',svcNamePH:'서비스 이름',urlPH:'결제 변경 URL (선택)',
+    addBtn:'추가',saveBtn:'저장',cancelBtn:'취소',deleteBtn:'삭제',doneBtn:'완료',
+    expiryWarn:'곧 만료',noSvcs:'연결된 서비스 없음',monthlyTotal:'월 합계',
+    statCards:'등록 카드 / 계좌',statSubs:'구독 서비스',statSpend:'월 총 지출',statExpiring:'곧 만료',
+    notEntered:'미입력',noExpiring:'만료 임박 카드 없음 ✓',changeNow:'지금 바꿔야 할 서비스',
+    editAmt:'금액 ✎',goBtn:'이동 ↗',callRequired:'전화 필요',
+    amtTitle:'금액 / 결제일',amtLabel:'월 금액',amtPH:'예: 17000',
+    dayLabel:'매월 결제일',dayPH:'예: 14',
+    saved:'✓ 저장됐어요',cardAdded:'✓ 카드가 추가됐어요',cardDeleted:'카드가 삭제됐어요',cardUpdated:'✓ 수정됐어요',
+    svcAdded:'✓ 추가됨',enterName:'서비스 이름을 입력해주세요',
+    deleteConfirm:'이 카드를 삭제할까요?',editCard:'카드 수정',
+    accountMeta:'계좌',expiryMeta:'유효기간',
+    updateGuide:'이동 ↗ 버튼으로 각 서비스 결제 변경 페이지로 바로 이동할 수 있어요.',
+    selectCountry:'국가 선택',
+    alertTitle:'⚠ 카드 만료 임박',alertBody:'이 곧 만료돼요.',linkedSvcs:'연결 서비스',
+    notifTitle:'CardKeep ⚠ 카드 만료 임박',
+    notifBody:'{name}이 {days}일 후 만료돼요. 연결된 서비스 결제 수단을 미리 변경하세요!',
+    notifOn:'✓ 알림 허용됐어요!',notifAlready:'✓ 알림이 설정되어 있어요',
+    notifDenied:'알림 권한이 거부됐어요',notifSettings:'브라우저 설정에서 알림을 허용해주세요',
+    notifNo:'이 브라우저는 알림을 지원하지 않아요',
+    streaming:'스트리밍',utilities:'공과금',insurance:'보험',finance:'금융',
+    noteOnline:'온라인 가능',noteCall:'콜센터 경유',noteNoCard:'카드납 불가',
+    noteDirect:'직접 연결',noteGoogle:'Google 경유',noteApple:'Apple ID 경유',noteVia:'플랫폼 경유',
+    monthly:'매월 {day}일',
+  }
+};
+function t(k){return(T[S?.country||'au']||T.au)[k]||k;}
+
 const SVCS = {
   au:{
-    '스트리밍':[
-      {id:'netflix',name:'넷플릭스',logo:'N',bg:'#141414',color:'#fff',url:'https://www.netflix.com/account/payment',note:'직접 연결'},
-      {id:'spotify',name:'Spotify',logo:'SP',bg:'#1db954',color:'#fff',url:'https://www.spotify.com/au/account/subscription/change-payment-method',note:'직접 연결'},
-      {id:'youtube',name:'유튜브',logo:'YT',bg:'#ff0000',color:'#fff',url:'https://pay.google.com/gp/w/u/0/home/paymentmethods',note:'Google 경유'},
-      {id:'appletv',name:'Apple TV+',logo:'AP',bg:'#000',color:'#fff',url:'https://appleid.apple.com/account/manage',note:'Apple ID 경유'},
-      {id:'stan',name:'Stan',logo:'St',bg:'#0056d2',color:'#fff',url:'https://www.stan.com.au/account/billing',note:'직접 연결'},
-      {id:'binge',name:'Binge',logo:'Bg',bg:'#ff5500',color:'#fff',url:'https://www.binge.com.au/account',note:'직접 연결'},
-      {id:'amazon',name:'Amazon',logo:'Am',bg:'#ff9900',color:'#fff',url:'https://www.amazon.com.au/cpe/managepaymentmethods',note:'직접 연결'},
+    streaming:[
+      {id:'netflix',name:'Netflix',logo:'N',bg:'#141414',color:'#fff',url:'https://www.netflix.com/account/payment',noteKey:'noteDirect'},
+      {id:'spotify',name:'Spotify',logo:'SP',bg:'#1db954',color:'#fff',url:'https://www.spotify.com/au/account/subscription/change-payment-method',noteKey:'noteDirect'},
+      {id:'youtube',name:'YouTube Premium',logo:'YT',bg:'#ff0000',color:'#fff',url:'https://pay.google.com/gp/w/u/0/home/paymentmethods',noteKey:'noteGoogle'},
+      {id:'appletv',name:'Apple TV+',logo:'AP',bg:'#000',color:'#fff',url:'https://appleid.apple.com/account/manage',noteKey:'noteApple'},
+      {id:'stan',name:'Stan',logo:'St',bg:'#0056d2',color:'#fff',url:'https://www.stan.com.au/account/billing',noteKey:'noteDirect'},
+      {id:'binge',name:'Binge',logo:'Bg',bg:'#ff5500',color:'#fff',url:'https://www.binge.com.au/account',noteKey:'noteDirect'},
+      {id:'amazon',name:'Amazon Prime',logo:'Am',bg:'#ff9900',color:'#fff',url:'https://www.amazon.com.au/cpe/managepaymentmethods',noteKey:'noteDirect'},
     ],
-    '공과금':[
-      {id:'agl',name:'AGL',logo:'AG',bg:'#1a4f8a',color:'#fff',url:'https://www.agl.com.au/myaccount',note:'직접 연결'},
-      {id:'origin',name:'Origin',logo:'Or',bg:'#e65100',color:'#fff',url:'https://www.originenergy.com.au/account',note:'직접 연결'},
-      {id:'telstra',name:'Telstra',logo:'Te',bg:'#2d6a4f',color:'#fff',url:'https://www.telstra.com.au/mytelstra',note:'직접 연결'},
-      {id:'optus',name:'Optus',logo:'Op',bg:'#c62828',color:'#fff',url:'https://www.optus.com.au/myoptus',note:'직접 연결'},
+    utilities:[
+      {id:'agl',name:'AGL',logo:'AG',bg:'#1a4f8a',color:'#fff',url:'https://www.agl.com.au/myaccount',noteKey:'noteDirect'},
+      {id:'origin',name:'Origin Energy',logo:'Or',bg:'#e65100',color:'#fff',url:'https://www.originenergy.com.au/account',noteKey:'noteDirect'},
+      {id:'telstra',name:'Telstra',logo:'Te',bg:'#2d6a4f',color:'#fff',url:'https://www.telstra.com.au/mytelstra',noteKey:'noteDirect'},
+      {id:'optus',name:'Optus',logo:'Op',bg:'#c62828',color:'#fff',url:'https://www.optus.com.au/myoptus',noteKey:'noteDirect'},
     ],
-    '보험':[
-      {id:'medibank',name:'Medibank',logo:'Mb',bg:'#185fa5',color:'#fff',url:'https://www.medibank.com.au/myaccount',note:'직접 연결'},
-      {id:'bupa',name:'Bupa',logo:'Bu',bg:'#1b5e20',color:'#fff',url:'https://www.bupa.com.au/health-insurance/member-centre',note:'직접 연결'},
-      {id:'nib',name:'nib',logo:'nb',bg:'#e65100',color:'#fff',url:'https://www.nib.com.au/members/manage-your-cover/payment-details',note:'직접 연결'},
-      {id:'nrma',name:'NRMA',logo:'NR',bg:'#1565c0',color:'#fff',url:'https://www.nrma.com.au/my-account',note:'직접 연결'},
-      {id:'aami',name:'AAMI',logo:'AA',bg:'#b71c1c',color:'#fff',url:'https://www.aami.com.au/myaami',note:'직접 연결'},
+    insurance:[
+      {id:'medibank',name:'Medibank',logo:'Mb',bg:'#185fa5',color:'#fff',url:'https://www.medibank.com.au/myaccount',noteKey:'noteDirect'},
+      {id:'bupa',name:'Bupa',logo:'Bu',bg:'#1b5e20',color:'#fff',url:'https://www.bupa.com.au/health-insurance/member-centre',noteKey:'noteDirect'},
+      {id:'nib',name:'nib',logo:'nb',bg:'#e65100',color:'#fff',url:'https://www.nib.com.au/members/manage-your-cover/payment-details',noteKey:'noteDirect'},
+      {id:'nrma',name:'NRMA',logo:'NR',bg:'#1565c0',color:'#fff',url:'https://www.nrma.com.au/my-account',noteKey:'noteDirect'},
+      {id:'aami',name:'AAMI',logo:'AA',bg:'#b71c1c',color:'#fff',url:'https://www.aami.com.au/myaami',noteKey:'noteDirect'},
     ],
   },
   kr:{
     '스트리밍':[
-      {id:'netflix',name:'넷플릭스',logo:'N',bg:'#141414',color:'#fff',url:'https://www.netflix.com/account/payment',note:'직접 연결'},
-      {id:'spotify',name:'스포티파이',logo:'SP',bg:'#1db954',color:'#fff',url:'https://www.spotify.com/kr-ko/account/subscription/change-payment-method',note:'직접 연결'},
-      {id:'youtube',name:'유튜브 프리미엄',logo:'YT',bg:'#ff0000',color:'#fff',url:'https://pay.google.com/gp/w/u/0/home/paymentmethods',note:'Google 경유'},
-      {id:'tving',name:'티빙',logo:'Tv',bg:'#1a56db',color:'#fff',url:'https://www.tving.com/user/profile/payment',note:'직접 연결'},
-      {id:'coupangplay',name:'쿠팡플레이',logo:'CP',bg:'#5b4fcf',color:'#fff',url:'https://www.coupang.com/np/member/rocketcard',note:'쿠팡 경유'},
-      {id:'appletv',name:'Apple TV+',logo:'AP',bg:'#000',color:'#fff',url:'https://appleid.apple.com/account/manage',note:'Apple ID 경유'},
+      {id:'netflix',name:'넷플릭스',logo:'N',bg:'#141414',color:'#fff',url:'https://www.netflix.com/account/payment',noteKey:'noteDirect'},
+      {id:'spotify',name:'스포티파이',logo:'SP',bg:'#1db954',color:'#fff',url:'https://www.spotify.com/kr-ko/account/subscription/change-payment-method',noteKey:'noteDirect'},
+      {id:'youtube',name:'유튜브 프리미엄',logo:'YT',bg:'#ff0000',color:'#fff',url:'https://pay.google.com/gp/w/u/0/home/paymentmethods',noteKey:'noteGoogle'},
+      {id:'tving',name:'티빙',logo:'Tv',bg:'#1a56db',color:'#fff',url:'https://www.tving.com/user/profile/payment',noteKey:'noteDirect'},
+      {id:'coupangplay',name:'쿠팡플레이',logo:'CP',bg:'#5b4fcf',color:'#fff',url:'https://www.coupang.com/np/member/rocketcard',noteKey:'noteVia'},
+      {id:'appletv',name:'Apple TV+',logo:'AP',bg:'#000',color:'#fff',url:'https://appleid.apple.com/account/manage',noteKey:'noteApple'},
     ],
     '공과금':[
-      {id:'kepco',name:'한전ON (전기)',logo:'한전',bg:'#1565c0',color:'#fff',url:'https://online.kepco.co.kr/',note:'직접 연결'},
-      {id:'skt',name:'SKT',logo:'SK',bg:'#ff6600',color:'#fff',url:'https://www.tworld.co.kr/web/home',note:'직접 연결'},
-      {id:'kt',name:'KT',logo:'KT',bg:'#ff0000',color:'#fff',url:'https://help.kt.com/serviceinfo/BillPaymentGuideL3.do',note:'직접 연결'},
-      {id:'lguplus',name:'LG U+',logo:'U+',bg:'#e40082',color:'#fff',url:'https://www.lguplus.com/mypage',note:'직접 연결'},
+      {id:'kepco',name:'한전ON (전기)',logo:'한전',bg:'#1565c0',color:'#fff',url:'https://online.kepco.co.kr/',noteKey:'noteDirect'},
+      {id:'skt',name:'SKT',logo:'SK',bg:'#ff6600',color:'#fff',url:'https://www.tworld.co.kr/web/home',noteKey:'noteDirect'},
+      {id:'kt',name:'KT',logo:'KT',bg:'#ff0000',color:'#fff',url:'https://help.kt.com/serviceinfo/BillPaymentGuideL3.do',noteKey:'noteDirect'},
+      {id:'lguplus',name:'LG U+',logo:'U+',bg:'#e40082',color:'#fff',url:'https://www.lguplus.com/mypage',noteKey:'noteDirect'},
     ],
     '보험':[
-      {id:'samsungfire',name:'삼성화재',logo:'삼화',bg:'#185fa5',color:'#fff',url:'https://www.samsungfire.com/mypage/index.do',note:'온라인 가능'},
-      {id:'hyundaiins',name:'현대해상',logo:'현해',bg:'#1b5e20',color:'#fff',url:'https://www.hi.co.kr/consumer/mypage/index.do',note:'온라인 가능'},
-      {id:'samsunglife',name:'삼성생명',logo:'삼생',bg:'#1a1917',color:'#fff',url:'https://www.samsunglife.com/individual/mypage/main.do',note:'콜센터 경유',callNote:'☎ 1588-3114'},
-      {id:'kyobo',name:'교보생명',logo:'교보',bg:'#9a7b4f',color:'#fff',url:'https://www.kyobo.co.kr/prd/mypage/index.jsp',note:'카드납 불가',callNote:'계좌이체만 가능'},
+      {id:'samsungfire',name:'삼성화재',logo:'삼화',bg:'#185fa5',color:'#fff',url:'https://www.samsungfire.com/mypage/index.do',noteKey:'noteOnline'},
+      {id:'hyundaiins',name:'현대해상',logo:'현해',bg:'#1b5e20',color:'#fff',url:'https://www.hi.co.kr/consumer/mypage/index.do',noteKey:'noteOnline'},
+      {id:'samsunglife',name:'삼성생명',logo:'삼생',bg:'#1a1917',color:'#fff',url:'https://www.samsunglife.com/individual/mypage/main.do',noteKey:'noteCall',callNote:'☎ 1588-3114'},
+      {id:'kyobo',name:'교보생명',logo:'교보',bg:'#9a7b4f',color:'#fff',url:'https://www.kyobo.co.kr/prd/mypage/index.jsp',noteKey:'noteNoCard',callNote:'계좌이체만 가능'},
     ],
     '금융':[
-      {id:'kakaopay',name:'카카오페이',logo:'카카',bg:'#f9e000',color:'#333',url:'https://www.kakaopay.com',note:'직접 연결'},
-      {id:'naverpay',name:'네이버페이',logo:'NV',bg:'#03c75a',color:'#fff',url:'https://new-m.pay.naver.com/mydata/subscriptions',note:'직접 연결'},
+      {id:'kakaopay',name:'카카오페이',logo:'카카',bg:'#f9e000',color:'#333',url:'https://www.kakaopay.com',noteKey:'noteDirect'},
+      {id:'naverpay',name:'네이버페이',logo:'NV',bg:'#03c75a',color:'#fff',url:'https://new-m.pay.naver.com/mydata/subscriptions',noteKey:'noteDirect'},
     ],
   }
 };
@@ -319,33 +395,36 @@ function persist(){try{localStorage.setItem('ck_v3',JSON.stringify(S));}catch(e)
 let S=loadState();
 S.cards.forEach(c=>{if(!c.customServices)c.customServices=[];if(!c.amounts)c.amounts={};});
 
-let amtKey=null,detailId=null,selColor='#1a1917',selType='card',selSvcs=[],tempCustom=[];
+let amtKey=null,detailId=null,selColor='#1a1917',selType='card',selSvcs=[],tempCustom=[],editingCardId=null;
 
 function allSvcs(){
   const r={};
-  Object.entries(SVCS[S.country]).forEach(([cat,list])=>list.forEach(s=>r[s.id]={...s,cat}));
+  const data=SVCS[S.country];
+  Object.entries(data).forEach(([cat,list])=>list.forEach(s=>r[s.id]={...s,cat,note:t(s.noteKey||'noteDirect')}));
   return r;
 }
-function expiryWarn(e){
+function catLabel(key){
+  const map={streaming:t('streaming'),utilities:t('utilities'),insurance:t('insurance'),finance:t('finance')};
+  return map[key]||key;
+}
+function noteClass(nk){return nk==='noteNoCard'?'b-no':nk==='noteCall'||nk==='noteVia'||nk==='noteGoogle'||nk==='noteApple'?'b-warn':'b-ok';}
+function isNoCard(nk){return nk==='noteNoCard';}
   if(!e)return false;
   const[m,y]=e.split('/');if(!m||!y)return false;
   const exp=new Date(2000+parseInt(y),parseInt(m)-1,1);
   return(exp-new Date())/(1000*60*60*24*30)<3;
 }
 function fmt(amt){if(!amt)return null;return S.country==='kr'?`₩${Number(amt).toLocaleString()}`:`$${Number(amt).toLocaleString()}`;}
-function toast(msg){const t=document.getElementById('toast');t.textContent=msg;t.classList.add('show');setTimeout(()=>t.classList.remove('show'),2200);}
-function badgeClass(note){return note?.includes('불가')?'b-no':note?.includes('경유')||note?.includes('콜센터')?'b-warn':'b-ok';}
+function toast(msg){const el=document.getElementById('toast');el.textContent=msg;el.classList.add('show');setTimeout(()=>el.classList.remove('show'),2200);}
 
-// Notifications
 function requestNotif(){
-  if(!('Notification'in window)){toast('이 브라우저는 알림 미지원');return;}
-  if(Notification.permission==='granted'){fireNotifs();toast('✓ 알림 확인 완료');}
+  if(!('Notification'in window)){toast(t('notifNo'));return;}
+  if(Notification.permission==='granted'){fireNotifs();toast(t('notifAlready'));}
   else if(Notification.permission!=='denied'){
     Notification.requestPermission().then(p=>{
-      if(p==='granted'){fireNotifs();toast('✓ 알림 허용됐어요!');}
-      else toast('알림 권한이 거부됐어요');
+      if(p==='granted'){fireNotifs();toast(t('notifOn'));}else toast(t('notifDenied'));
     });
-  }else toast('브라우저 설정에서 알림을 허용해주세요');
+  }else toast(t('notifSettings'));
 }
 function fireNotifs(){
   if(Notification.permission!=='granted')return;
@@ -354,31 +433,27 @@ function fireNotifs(){
     const[m,y]=c.expiry.split('/');if(!m||!y)return;
     const exp=new Date(2000+parseInt(y),parseInt(m)-1,1);
     const days=Math.ceil((exp-new Date())/(1000*60*60*24));
-    if(days>0&&days<=60){
-      new Notification('CardKeep ⚠ 카드 만료 임박',{
-        body:`${c.name}이 ${days}일 후 만료돼요. 연결된 서비스 결제 수단을 미리 변경하세요!`
-      });
-    }
+    if(days>0&&days<=60)new Notification(t('notifTitle'),{body:t('notifBody').replace('{name}',c.name).replace('{days}',days)});
   });
 }
 
-// Render
 function renderCards(){
   const el=document.getElementById('cardList');
-  if(!S.cards.length){el.innerHTML=`<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">카드가 없어요</div><div class="empty-sub">아래 버튼을 눌러 추가해보세요</div></div>`;return;}
+  if(!S.cards.length){el.innerHTML=`<div class="empty"><div class="empty-icon">💳</div><div class="empty-title">${S.country==='au'?'No cards yet':'카드가 없어요'}</div><div class="empty-sub">${S.country==='au'?'Tap below to add your first card':'아래 버튼을 눌러 추가해보세요'}</div></div>`;return;}
   const as=allSvcs();
   el.innerHTML=S.cards.map(c=>{
     const warn=expiryWarn(c.expiry);
     const chips=[...c.services.map(id=>as[id]?.name).filter(Boolean),...(c.customServices||[]).map(s=>s.name)].map(n=>`<span class="sub-chip">${n}</span>`).join('');
     const total=[...c.services,...(c.customServices||[]).map(s=>s.id)].reduce((sum,id)=>sum+(Number(c.amounts?.[id]?.amount)||0),0);
+    const meta=c.type==='card'?`${t('expiryMeta')} ${c.expiry||'—'}`:t('accountMeta');
     return`<div class="card-item" onclick="openDetail('${c.id}')">
       <div class="card-top">
         <div class="card-chip" style="background:${c.color};">${c.type==='card'?'💳':'🏦'}</div>
-        <div class="card-info"><div class="card-name">${c.name}${c.last4?` •••• ${c.last4}`:''}</div><div class="card-meta">${c.type==='card'?`유효기간 ${c.expiry||'미입력'}`:'계좌'}</div></div>
-        ${warn?`<span class="expiry-warn">⚠ 곧 만료</span>`:''}
+        <div class="card-info"><div class="card-name">${c.name}${c.last4?` •••• ${c.last4}`:''}</div><div class="card-meta">${meta}</div></div>
+        ${warn?`<span class="expiry-warn">⚠ ${t('expiryWarn')}</span>`:''}
       </div>
-      ${chips?`<div class="sub-chips">${chips}</div>`:`<div style="font-size:12px;color:var(--text3);">연결된 서비스 없음</div>`}
-      ${total>0?`<div class="card-total">월 합계: ${fmt(total)}</div>`:''}
+      ${chips?`<div class="sub-chips">${chips}</div>`:`<div style="font-size:12px;color:var(--text3);">${t('noSvcs')}</div>`}
+      ${total>0?`<div class="card-total">${t('monthlyTotal')}: ${fmt(total)}</div>`:''}
     </div>`;
   }).join('');
 }
@@ -389,25 +464,27 @@ function renderServices(){
   const rows=[];
   S.cards.forEach(c=>{
     c.services.forEach(id=>{const s=as[id];if(s)rows.push({...s,cName:c.name,cLast4:c.last4,cId:c.id,amt:c.amounts?.[id]});});
-    (c.customServices||[]).forEach(s=>rows.push({...s,cName:c.name,cLast4:c.last4,cId:c.id,amt:c.amounts?.[s.id],note:'직접 추가',bg:'#6b6960',color:'#fff',logo:s.name[0]||'?'}));
+    (c.customServices||[]).forEach(s=>rows.push({...s,cName:c.name,cLast4:c.last4,cId:c.id,amt:c.amounts?.[s.id],noteKey:'noteDirect',note:t('noteDirect'),bg:'#6b6960',color:'#fff',logo:s.name[0]||'?'}));
   });
-  if(!rows.length){el.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">구독 서비스가 없어요</div><div class="empty-sub">카드에 서비스를 연결해보세요</div></div>`;return;}
+  if(!rows.length){el.innerHTML=`<div class="empty"><div class="empty-icon">📋</div><div class="empty-title">${S.country==='au'?'No subscriptions yet':'구독 서비스가 없어요'}</div><div class="empty-sub">${S.country==='au'?'Link services to your cards':'카드에 서비스를 연결해보세요'}</div></div>`;return;}
   el.innerHTML=rows.map(s=>{
-    const noCard=s.note?.includes('불가');
+    const nk=s.noteKey||'noteDirect';
+    const noCard=isNoCard(nk);
+    const cycleText=s.amt?.day?t('monthly').replace('{day}',s.amt.day):'';
     return`<div class="svc-item">
       <div class="svc-left">
         <div class="svc-logo" style="background:${s.bg};color:${s.color};">${s.logo}</div>
         <div class="svc-info">
           <div class="svc-name">${s.name}</div>
-          <div class="svc-sub">${s.cName}${s.cLast4?` •••• ${s.cLast4}`:''} · <span class="badge ${badgeClass(s.note)}">${s.note}</span>${s.callNote?` <span style="font-size:11px;color:var(--text3);">${s.callNote}</span>`:''}</div>
+          <div class="svc-sub">${s.cName}${s.cLast4?` •••• ${s.cLast4}`:''} · <span class="badge ${noteClass(nk)}">${t(nk)}</span>${s.callNote?` <span style="font-size:11px;color:var(--text3);">${s.callNote}</span>`:''}</div>
         </div>
       </div>
       <div class="svc-right">
         ${s.amt?.amount?`<div class="svc-amt">${fmt(s.amt.amount)}</div>`:''}
-        ${s.amt?.day?`<div class="svc-cycle">매월 ${s.amt.day}일</div>`:''}
+        ${cycleText?`<div class="svc-cycle">${cycleText}</div>`:''}
         <div style="display:flex;gap:4px;">
-          <button class="go-btn" onclick="event.stopPropagation();openAmt('${s.cId}','${s.id}','${s.name}')" style="font-size:11px;padding:3px 9px;">금액 ✎</button>
-          ${!noCard&&s.url?`<a class="go-btn" href="${s.url}" target="_blank">이동 ↗</a>`:`<span style="font-size:12px;color:var(--text3);">전화 필요</span>`}
+          <button class="go-btn" onclick="event.stopPropagation();openAmt('${s.cId}','${s.id}','${s.name}')" style="font-size:11px;padding:3px 9px;">${t('editAmt')}</button>
+          ${!noCard&&s.url?`<a class="go-btn" href="${s.url}" target="_blank">${t('goBtn')}</a>`:`<span style="font-size:12px;color:var(--text3);">${t('callRequired')}</span>`}
         </div>
       </div>
     </div>`;
@@ -420,14 +497,14 @@ function renderSummary(){
   const totalSvcs=S.cards.reduce((a,c)=>a+c.services.length+(c.customServices||[]).length,0);
   const totalAmt=S.cards.reduce((sum,c)=>sum+Object.values(c.amounts||{}).reduce((s,a)=>s+(Number(a?.amount)||0),0),0);
   document.getElementById('statsGrid').innerHTML=`
-    <div class="stat-card"><div class="stat-label">등록 카드 / 계좌</div><div class="stat-val">${S.cards.length}개</div></div>
-    <div class="stat-card"><div class="stat-label">구독 서비스</div><div class="stat-val">${totalSvcs}개</div></div>
-    <div class="stat-card"><div class="stat-label">월 총 지출</div><div class="stat-val" style="font-size:${totalAmt>0?'18':'24'}px;">${totalAmt>0?fmt(totalAmt):'미입력'}</div></div>
-    <div class="stat-card"><div class="stat-label">곧 만료</div><div class="stat-val ${warnCards.length?'warn':''}">${warnCards.length}개</div></div>
+    <div class="stat-card"><div class="stat-label">${t('statCards')}</div><div class="stat-val">${S.cards.length}</div></div>
+    <div class="stat-card"><div class="stat-label">${t('statSubs')}</div><div class="stat-val">${totalSvcs}</div></div>
+    <div class="stat-card"><div class="stat-label">${t('statSpend')}</div><div class="stat-val" style="font-size:${totalAmt>0?'18':'24'}px;">${totalAmt>0?fmt(totalAmt):t('notEntered')}</div></div>
+    <div class="stat-card"><div class="stat-label">${t('statExpiring')}</div><div class="stat-val ${warnCards.length?'warn':''}">${warnCards.length}</div></div>
   `;
   document.getElementById('alertArea').innerHTML=warnCards.map(c=>{
     const names=[...c.services.map(id=>as[id]?.name).filter(Boolean),...(c.customServices||[]).map(s=>s.name)].join(', ');
-    return`<div class="alert-card"><div class="alert-title">⚠ 카드 만료 임박</div><div class="alert-body"><strong>${c.name}</strong>이 곧 만료돼요.<br>${names?`연결 서비스: ${names}`:''}</div></div>`;
+    return`<div class="alert-card"><div class="alert-title">${t('alertTitle')}</div><div class="alert-body"><strong>${c.name}</strong> ${t('alertBody')}<br>${names?`${t('linkedSvcs')}: ${names}`:''}</div></div>`;
   }).join('');
   const summaryEl=document.getElementById('summaryList');
   if(warnCards.length){
@@ -436,16 +513,30 @@ function renderSummary(){
       c.services.forEach(id=>{const s=as[id];if(s)rows.push({...s,cName:c.name});});
       (c.customServices||[]).forEach(s=>rows.push({...s,cName:c.name,bg:'#6b6960',color:'#fff',logo:s.name[0]}));
     });
-    summaryEl.innerHTML=`<div class="sec-title" style="margin-top:16px;">지금 바꿔야 할 서비스</div>`+rows.map(s=>`<div class="svc-item">
+    summaryEl.innerHTML=`<div class="sec-title" style="margin-top:16px;">${t('changeNow')}</div>`+rows.map(s=>`<div class="svc-item">
       <div class="svc-left"><div class="svc-logo" style="background:${s.bg};color:${s.color};">${s.logo}</div><div class="svc-info"><div class="svc-name">${s.name}</div><div class="svc-sub">${s.cName}</div></div></div>
-      ${s.url?`<a class="go-btn" href="${s.url}" target="_blank">변경 ↗</a>`:`<span style="font-size:12px;color:var(--text3);">전화 필요</span>`}
+      ${s.url?`<a class="go-btn" href="${s.url}" target="_blank">${t('goBtn')}</a>`:`<span style="font-size:12px;color:var(--text3);">${t('callRequired')}</span>`}
     </div>`).join('');
-  }else{summaryEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:14px;">만료 임박 카드 없음 ✓</div>`;}
+  }else{summaryEl.innerHTML=`<div style="text-align:center;padding:24px;color:var(--text3);font-size:14px;">${t('noExpiring')}</div>`;}
 }
 
-function renderAll(){renderCards();renderServices();renderSummary();}
+function renderUI(){
+  const navSpans=document.querySelectorAll('.nav-btn span');
+  if(navSpans[0])navSpans[0].textContent=t('navCards');
+  if(navSpans[1])navSpans[1].textContent=t('navSubs');
+  if(navSpans[2])navSpans[2].textContent=t('navSummary');
+  document.getElementById('countryBadge').textContent=S.country==='au'?'🇦🇺 Australia':'🇰🇷 한국';
+  document.querySelectorAll('.sec-title').forEach(s=>{
+    if(s.parentElement.id==='sec-cards')s.textContent=t('myCards');
+    if(s.parentElement.id==='sec-services')s.textContent=t('allSubs');
+    if(s.parentElement.id==='sec-summary')s.textContent=t('summarySec');
+  });
+  const addBtn=document.querySelector('.add-card-btn');
+  if(addBtn){const nodes=addBtn.childNodes;nodes[nodes.length-1].textContent=' '+t('addCardBtn');}
+}
 
-// Tab
+function renderAll(){renderCards();renderServices();renderSummary();renderUI();}
+
 function switchTab(name,btn){
   document.querySelectorAll('.section').forEach(s=>s.classList.remove('active'));
   document.querySelectorAll('.nav-btn').forEach(b=>b.classList.remove('active'));
@@ -454,27 +545,26 @@ function switchTab(name,btn){
   renderAll();
 }
 
-// Amount
 function openAmt(cId,sId,sName){
   amtKey={cId,sId};
-  document.getElementById('amtTitle').textContent=`${sName} 금액 / 결제일`;
+  document.getElementById('amtTitle').textContent=`${sName} — ${t('amtTitle')}`;
   const c=S.cards.find(c=>c.id===cId);
   const ex=c?.amounts?.[sId];
   document.getElementById('iAmt').value=ex?.amount||'';
+  document.getElementById('iAmt').placeholder=t('amtPH');
   document.getElementById('iDay').value=ex?.day||'';
+  document.getElementById('iDay').placeholder=t('dayPH');
   document.getElementById('amtModal').classList.add('open');
 }
 function closeAmt(){document.getElementById('amtModal').classList.remove('open');amtKey=null;}
 function saveAmt(){
   if(!amtKey)return;
-  const c=S.cards.find(c=>c.id===amtKey.cId);
-  if(!c)return;
+  const c=S.cards.find(c=>c.id===amtKey.cId);if(!c)return;
   if(!c.amounts)c.amounts={};
   c.amounts[amtKey.sId]={amount:document.getElementById('iAmt').value,day:document.getElementById('iDay').value};
-  persist();closeAmt();renderAll();toast('✓ 저장됐어요');
+  persist();closeAmt();renderAll();toast(t('saved'));
 }
 
-// Detail
 function openDetail(id){
   detailId=id;
   const c=S.cards.find(c=>c.id===id);if(!c)return;
@@ -482,39 +572,92 @@ function openDetail(id){
   document.getElementById('dChip').style.cssText=`background:${c.color};color:#fff;width:48px;height:32px;border-radius:6px;display:flex;align-items:center;justify-content:center;font-size:20px;`;
   document.getElementById('dChip').textContent=c.type==='card'?'💳':'🏦';
   document.getElementById('dName').textContent=c.name+(c.last4?` •••• ${c.last4}`:'');
-  document.getElementById('dMeta').textContent=c.type==='card'?`유효기간 ${c.expiry||'미입력'}`:'계좌';
-  const rows=[...c.services.map(id=>as[id]?{...as[id]}:null).filter(Boolean),...(c.customServices||[]).map(s=>({...s,bg:'#6b6960',color:'#fff',logo:s.name[0],note:'직접 추가'}))];
+  document.getElementById('dMeta').textContent=c.type==='card'?`${t('expiryMeta')} ${c.expiry||'—'}`:t('accountMeta');
+  const rows=[...c.services.map(id=>as[id]?{...as[id]}:null).filter(Boolean),...(c.customServices||[]).map(s=>({...s,bg:'#6b6960',color:'#fff',logo:s.name[0],noteKey:'noteDirect',note:t('noteDirect')}))];
   document.getElementById('detailSvcs').innerHTML=rows.length?rows.map(s=>{
-    const noCard=s.note?.includes('불가');
+    const nk=s.noteKey||'noteDirect';
+    const noCard=isNoCard(nk);
     const amt=c.amounts?.[s.id];
+    const cycleText=amt?.day?t('monthly').replace('{day}',amt.day):'';
     return`<div class="d-svc-item">
       <div class="svc-left"><div class="svc-logo" style="background:${s.bg};color:${s.color};">${s.logo}</div>
-      <div class="svc-info"><div class="svc-name">${s.name}${amt?.amount?` · ${fmt(amt.amount)}`:''}</div><div class="svc-sub">${s.note||''}${amt?.day?` · 매월 ${amt.day}일`:''}</div></div></div>
-      ${!noCard&&s.url?`<a class="go-btn" href="${s.url}" target="_blank">이동 ↗</a>`:`<span style="font-size:12px;color:var(--text3);">전화 필요</span>`}
+      <div class="svc-info"><div class="svc-name">${s.name}${amt?.amount?` · ${fmt(amt.amount)}`:''}</div><div class="svc-sub">${t(nk)}${cycleText?' · '+cycleText:''}</div></div></div>
+      ${!noCard&&s.url?`<a class="go-btn" href="${s.url}" target="_blank">${t('goBtn')}</a>`:`<span style="font-size:12px;color:var(--text3);">${t('callRequired')}</span>`}
     </div>`;
-  }).join(''):`<div style="font-size:14px;color:var(--text3);padding:16px 0;">연결된 서비스가 없어요</div>`;
+  }).join(''):`<div style="font-size:14px;color:var(--text3);padding:16px 0;">${t('noLinkedServices')}</div>`;
+  const guideEl=document.querySelector('.detail-body div[style*="border"]');
+  if(guideEl)guideEl.textContent=t('updateGuide');
+  const delBtn=document.querySelector('#deleteCardBtn');
+  if(delBtn)delBtn.textContent=t('deleteBtn');
   document.getElementById('detailView').classList.add('open');
 }
 function closeDetail(){document.getElementById('detailView').classList.remove('open');detailId=null;}
 function deleteCard(){
   if(!detailId)return;
-  if(!confirm('이 카드를 삭제할까요?'))return;
+  if(!confirm(t('deleteConfirm')))return;
   S.cards=S.cards.filter(c=>c.id!==detailId);
-  persist();closeDetail();renderAll();toast('카드가 삭제됐어요');
+  persist();closeDetail();renderAll();toast(t('cardDeleted'));
 }
 
-// Add
+function openEdit(){
+  if(!detailId)return;
+  const c=S.cards.find(c=>c.id===detailId);
+  if(!c)return;
+  closeDetail();
+  // pre-fill
+  selColor=c.color;
+  selSvcs=[...c.services];
+  selType=c.type;
+  tempCustom=[...(c.customServices||[])];
+  editingCardId=detailId;
+  document.getElementById('iName').value=c.name;
+  document.getElementById('iName').placeholder=t('namePH');
+  document.getElementById('iLast4').value=c.last4||'';
+  document.getElementById('iExpiry').value=c.expiry||'';
+  document.getElementById('iExpiry').placeholder=t('expiryPH');
+  document.getElementById('iCName').value='';
+  document.getElementById('iCName').placeholder=t('svcNamePH');
+  document.getElementById('iCUrl').value='';
+  document.getElementById('iCUrl').placeholder=t('urlPH');
+  // color dots
+  document.querySelectorAll('.cdot').forEach(d=>d.style.border=d.dataset.color===selColor?`2px solid ${selColor}`:'2px solid transparent');
+  // type buttons
+  document.querySelectorAll('.type-btn').forEach((b,i)=>{
+    const types=['card','account'];
+    b.classList.toggle('active',types[i]===selType);
+    b.textContent=i===0?t('typeCard'):t('typeAccount');
+  });
+  document.getElementById('expiryGrp').style.display=selType==='card'?'':'none';
+  // modal title → Edit
+  const mt=document.querySelector('#addModal .modal-title');if(mt)mt.textContent=t('editCard');
+  const savB=document.querySelector('#addModal .btn-save');if(savB)savB.textContent=t('saveBtn');
+  const canB=document.querySelector('#addModal .btn-cancel');if(canB)canB.textContent=t('cancelBtn');
+  // custom list
+  const linkTxt=S.country==='au'?'(link added)':'(링크 있음)';
+  document.getElementById('customList').innerHTML=tempCustom.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;"><span style="font-size:13px;font-weight:500;">${s.name}${s.url?` <span style='font-size:11px;color:var(--text3);'>${linkTxt}</span>`:''}</span><button onclick="removeCustom(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;">×</button></div>`).join('');
+  buildSvcSelector();
+  document.getElementById('addModal').classList.add('open');
+}
+
 function openAdd(){
+  editingCardId=null;
   selColor='#1a1917';selSvcs=[];selType='card';tempCustom=[];
   document.getElementById('iName').value='';
+  document.getElementById('iName').placeholder=t('namePH');
   document.getElementById('iLast4').value='';
   document.getElementById('iExpiry').value='';
+  document.getElementById('iExpiry').placeholder=t('expiryPH');
   document.getElementById('iCName').value='';
+  document.getElementById('iCName').placeholder=t('svcNamePH');
   document.getElementById('iCUrl').value='';
+  document.getElementById('iCUrl').placeholder=t('urlPH');
   document.getElementById('customList').innerHTML='';
   document.querySelectorAll('.cdot').forEach(d=>d.style.border=d.dataset.color==='#1a1917'?'2px solid #1a1917':'2px solid transparent');
-  document.querySelectorAll('.type-btn').forEach((b,i)=>b.classList.toggle('active',i===0));
+  document.querySelectorAll('.type-btn').forEach((b,i)=>{b.classList.toggle('active',i===0);b.textContent=i===0?t('typeCard'):t('typeAccount');});
   document.getElementById('expiryGrp').style.display='';
+  const mt=document.querySelector('#addModal .modal-title');if(mt)mt.textContent=t('addCardTitle');
+  const savB=document.querySelector('#addModal .btn-save');if(savB)savB.textContent=t('saveBtn');
+  const canB=document.querySelector('#addModal .btn-cancel');if(canB)canB.textContent=t('cancelBtn');
   buildSvcSelector();
   document.getElementById('addModal').classList.add('open');
 }
@@ -532,8 +675,9 @@ function pickColor(el){
 function buildSvcSelector(){
   const cats=SVCS[S.country];
   let html='';
-  Object.entries(cats).forEach(([cat,list])=>{
-    html+=`<div class="cat-lbl">${cat}</div><div class="svc-grid">`;
+  Object.entries(cats).forEach(([catKey,list])=>{
+    const catMap={streaming:t('streaming'),utilities:t('utilities'),insurance:t('insurance'),finance:t('finance')};
+    html+=`<div class="cat-lbl">${catMap[catKey]||catKey}</div><div class="svc-grid">`;
     list.forEach(s=>html+=`<button class="svc-chip${selSvcs.includes(s.id)?' sel':''}" onclick="toggleSvc('${s.id}',this)">${s.name}</button>`);
     html+=`</div>`;
   });
@@ -546,40 +690,56 @@ function toggleSvc(id,el){
 }
 function addCustom(){
   const name=document.getElementById('iCName').value.trim();
-  if(!name){toast('서비스 이름을 입력해주세요');return;}
+  if(!name){toast(t('enterName'));return;}
   const url=document.getElementById('iCUrl').value.trim();
   tempCustom.push({id:'c_'+Date.now(),name,url});
   document.getElementById('iCName').value='';
   document.getElementById('iCUrl').value='';
-  document.getElementById('customList').innerHTML=tempCustom.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;"><span style="font-size:13px;font-weight:500;">${s.name}${s.url?` <span style='font-size:11px;color:var(--text3);'>(링크 있음)</span>`:''}</span><button onclick="removeCustom(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;">×</button></div>`).join('');
-  toast(`✓ ${name} 추가됨`);
+  const linkTxt=S.country==='au'?'(link added)':'(링크 있음)';
+  document.getElementById('customList').innerHTML=tempCustom.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;"><span style="font-size:13px;font-weight:500;">${s.name}${s.url?` <span style='font-size:11px;color:var(--text3);'>${linkTxt}</span>`:''}</span><button onclick="removeCustom(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;">×</button></div>`).join('');
+  toast(`✓ ${name} ${t('svcAdded')}`);
 }
-function removeCustom(i){tempCustom.splice(i,1);addCustom();document.getElementById('iCName').value='';document.getElementById('iCUrl').value='';}
+function removeCustom(i){
+  tempCustom.splice(i,1);
+  document.getElementById('customList').innerHTML=tempCustom.map((s,i)=>`<div style="display:flex;align-items:center;justify-content:space-between;padding:8px 10px;background:var(--surface2);border-radius:var(--radius-sm);margin-bottom:4px;"><span style="font-size:13px;font-weight:500;">${s.name}</span><button onclick="removeCustom(${i})" style="background:none;border:none;cursor:pointer;color:var(--text3);font-size:18px;line-height:1;">×</button></div>`).join('');
+}
 function saveCard(){
   const name=document.getElementById('iName').value.trim();
   if(!name){document.getElementById('iName').focus();return;}
-  S.cards.push({
-    id:'c'+Date.now(),type:selType,name,
-    last4:document.getElementById('iLast4').value.trim(),
-    expiry:selType==='card'?document.getElementById('iExpiry').value.trim():'',
-    color:selColor,services:[...selSvcs],customServices:[...tempCustom],amounts:{}
-  });
-  persist();closeAdd();renderAll();toast('✓ 카드가 추가됐어요');
+  if(editingCardId){
+    // Edit mode — update existing card
+    const idx=S.cards.findIndex(c=>c.id===editingCardId);
+    if(idx>=0){
+      const existing=S.cards[idx];
+      S.cards[idx]={
+        ...existing,
+        type:selType,name,
+        last4:document.getElementById('iLast4').value.trim(),
+        expiry:selType==='card'?document.getElementById('iExpiry').value.trim():'',
+        color:selColor,
+        services:[...selSvcs],
+        customServices:[...tempCustom],
+      };
+    }
+    editingCardId=null;
+    persist();closeAdd();renderAll();toast(t('cardUpdated'));
+  } else {
+    // Add mode
+    S.cards.push({id:'c'+Date.now(),type:selType,name,last4:document.getElementById('iLast4').value.trim(),expiry:selType==='card'?document.getElementById('iExpiry').value.trim():'',color:selColor,services:[...selSvcs],customServices:[...tempCustom],amounts:{}});
+    persist();closeAdd();renderAll();toast(t('cardAdded'));
+  }
 }
 
-// Country
 function openCountry(){document.getElementById('countryModal').classList.add('open');}
 function closeCountry(){document.getElementById('countryModal').classList.remove('open');}
 function selectCountry(c,el){
   S.country=c;
   document.querySelectorAll('.c-opt').forEach(o=>o.classList.remove('sel'));
   el.classList.add('sel');
-  document.getElementById('countryBadge').textContent=c==='au'?'🇦🇺 호주':'🇰🇷 한국';
   persist();renderAll();
 }
 
 // Init
-document.getElementById('countryBadge').textContent=S.country==='au'?'🇦🇺 호주':'🇰🇷 한국';
 document.querySelectorAll('.c-opt').forEach(o=>o.classList.toggle('sel',o.dataset.country===S.country));
 renderAll();
 if(Notification.permission==='granted')setTimeout(fireNotifs,1000);
